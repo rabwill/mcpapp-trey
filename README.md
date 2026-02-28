@@ -2,6 +2,7 @@
 
 MCP server with rich Fluent UI React widgets for managing HR consultants, projects, and assignments.
 
+![demo](frame.png)
 ## Author
 
 | Name | GitHub |
@@ -70,8 +71,6 @@ npm run start:server       # Start MCP server on http://localhost:3001
 
 Once connected, try these prompts:
 - "Show me the HR dashboard"
-- "Search for consultants with Azure skills"
-- "Show profile for consultant 1"
 
 ## MCP Tools
 
