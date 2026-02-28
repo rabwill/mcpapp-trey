@@ -12,7 +12,7 @@
     "start:server": "cd server && npm start",
     "dev:server": "cd server && npm run dev",
     "start": "cd server && npm start",
-    "install:all": "npm install && cd server && npm install && cd ./widgets && npm install",
+    "install:all": "npm install && cd server && npm install && cd ../widgets && npm install",
     "inspector": "npx @modelcontextprotocol/inspector"
   },
   "devDependencies": {

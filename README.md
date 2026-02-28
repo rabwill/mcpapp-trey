@@ -32,43 +32,39 @@ npm run start:server       # Start MCP server on http://localhost:3001
 
 ### Claude
 
-1. Start a tunnel to expose your local server:
-   ```bash
-   npx localtunnel --port 3001
-   # or
-   ngrok http 3001
-   ```
-2. Copy the tunnel URL (e.g., `https://xyz.loca.lt`)
-3. Go to [Claude](https://claude.ai) and open a conversation
-4. Click the **Connectors** icon in the chat input area
-5. Click **Manage Connectors**
+1. Expose your local server using VS Code port forwarding:
+   - Open the **Ports** view in VS Code (click the **Ports** tab in the bottom panel, or run **Ports: Focus on Ports View** from the Command Palette)
+   - Click **Forward a Port** and enter `3001`
+   - Right-click the forwarded port and select **Port Visibility** > **Public**
+   - Copy the generated forwarded URL (e.g., `https://<id>-3001.uks1.devtunnels.ms`)
+2. Go to [Claude](https://claude.ai) and open a conversation
+3. Click the **Connectors** icon in the chat input area
+4. Click **Manage Connectors**
 5. Click **Add custom connector**
-6. Enter a name (e.g., "Trey HR") and your tunnel URL with `/mcp` as the Remote MCP server URL:
+6. Enter a name (e.g., "Trey HR") and your forwarded URL with `/mcp` as the Remote MCP server URL:
    ```
-   https://xyz.loca.lt/mcp
+   https://<id>-3001.uks1.devtunnels.ms/mcp
    ```
 7. Click **Add** to connect
 8. The MCP tools will now be available in your conversation
 
 ### ChatGPT
 
-1. Start a tunnel to expose your local server:
-   ```bash
-   npx localtunnel --port 3001
-   # or
-   ngrok http 3001
+1. Expose your local server using VS Code port forwarding:
+   - Open the **Ports** view in VS Code (click the **Ports** tab in the bottom panel, or run **Ports: Focus on Ports View** from the Command Palette)
+   - Click **Forward a Port** and enter `3001`
+   - Right-click the forwarded port and select **Port Visibility** > **Public**
+   - Copy the generated forwarded URL (e.g., `https://<id>-3001.uks1.devtunnels.ms`)
+2. Go to [ChatGPT](https://chat.openai.com)
+3. Click the **Setting** from your profile
+4. Click **Apps** > **Create app**
+5. Enter a name (e.g., "Trey HR") and your forwarded URL with `/mcp` as the Remote MCP server URL:
    ```
-2. Copy the tunnel URL (e.g., `https://xyz.loca.lt`)
-3. Go to [ChatGPT](https://chat.openai.com) 
-4. Click the **Setting** from your profile 
-5. Click **Apps** > **Create app**
-6. Enter a name (e.g., "Trey HR") and your tunnel URL with `/mcp` as the Remote MCP server URL:
+   https://<id>-3001.uks1.devtunnels.ms/mcp
    ```
-   https://xyz.loca.lt/mcp
-   ```
-7. Authentication is `No Auth`, select it
-8. Click **Create** 
-9. The MCP tools will now be available in your conversation
+6. Authentication is `No Auth`, select it
+7. Click **Create**
+8. The MCP tools will now be available in your conversation
 
 ### Testing Prompts
 
@@ -104,15 +100,10 @@ Once connected, try these prompts:
 | Prompt | What it does |
 |---|---|
 | *Show me the HR dashboard* | Opens the dashboard widget with all data |
-| *Show dashboard filtered by Azure skill* | Dashboard filtered to Azure-skilled consultants |
-| *Show profile for consultant 1* | Opens a consultant profile card |
-| *Show project details for project 1* | Opens project detail with team |
-| *Search consultants with Azure skills* | Finds matching consultants in the bulk editor |
-| *Open the bulk editor* | Opens the editor with all consultants |
-| *Open bulk editor for consultants named Avery* | Editor filtered to matching consultants |
-| *Assign consultant 3 to project 1 as Architect at $150/hr* | Creates an assignment |
-| *Remove consultant 2 from project 1* | Removes an assignment |
-| *Update consultant 1 — add skill "Kubernetes"* | Updates a single field |
+| *Avery Howard is on two projects already — show me her profile, then find another React developer who could take over the Woodgrove Bank financial plugin work* | Agent opens the profile to review Avery's workload, searches for consultants with React skills, and surfaces Sanjay Puranik as a candidate — reasoning across tools a static page can't do |
+| *We just signed Southridge Video's platform migration — find everyone with Python or Node.js skills, show me their profiles, and assign the best fit as Architect at $130/hr* | Agent searches by skill, evaluates multiple consultant profiles, picks Robin Zupanc (Python + multi-cloud certs), and creates the assignment — a multi-step workflow in one conversation |
+| *Show the dashboard filtered to billable consultants, then open the bulk editor and add the certification "GitHub Copilot" to every consultant who has JavaScript as a skill* | Agent filters the dashboard for insight, pivots to the bulk editor, identifies Avery and Sanjay as JavaScript-skilled, and batch-updates their certifications — chaining read and write operations |
+| *Bellows College needs a project lead for their network security review — who's free, and can you assign them and update their skills to include "Network Security"?* | Agent checks current assignments, finds Lois Wyn (Project lead role, no assignments), assigns her to the project, and updates her skill list — orchestrating three tools in one request |
 
 ## Development
 
