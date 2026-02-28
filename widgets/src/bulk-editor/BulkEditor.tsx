@@ -119,11 +119,15 @@ export function BulkEditor() {
 
   // Fullscreen toggle — starts inline, switches on button click
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Whether the MCP host is managing the fullscreen display (e.g. Claude)
+  const [hostManagedFullscreen, setHostManagedFullscreen] = useState(false);
 
   // Sync fullscreen state from MCP host context changes
   useEffect(() => {
     if (hostContext?.displayMode !== undefined) {
       setIsFullscreen(hostContext.displayMode === "fullscreen");
+      // The host is managing fullscreen — don't apply CSS overrides
+      setHostManagedFullscreen(true);
     }
   }, [hostContext?.displayMode]);
 
@@ -245,7 +249,7 @@ export function BulkEditor() {
         background: t.surface,
         minHeight: "100%",
         color: t.textPrimary,
-        ...(isFullscreen ? {
+        ...((isFullscreen && !hostManagedFullscreen) ? {
           position: "fixed" as const, top: 0, left: 0, right: 0, bottom: 0,
           zIndex: 9999, overflowY: "auto" as const,
         } : {}),

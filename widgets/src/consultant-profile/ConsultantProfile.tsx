@@ -145,11 +145,15 @@ export function ConsultantProfile() {
 
   // Fullscreen toggle — starts inline, switches on button click
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Whether the MCP host is managing the fullscreen display (e.g. Claude)
+  const [hostManagedFullscreen, setHostManagedFullscreen] = useState(false);
 
   // Sync fullscreen state from MCP host context changes
   useEffect(() => {
     if (hostContext?.displayMode !== undefined) {
       setIsFullscreen(hostContext.displayMode === "fullscreen");
+      // The host is managing fullscreen — don't apply CSS overrides
+      setHostManagedFullscreen(true);
     }
   }, [hostContext?.displayMode]);
 
@@ -181,7 +185,7 @@ export function ConsultantProfile() {
   }, [app, hostContext?.displayMode]);
 
   return (
-    <div className={styles.root} style={isFullscreen ? {
+    <div className={styles.root} style={(isFullscreen && !hostManagedFullscreen) ? {
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
       zIndex: 9999, overflowY: "auto", background: tokens.colorNeutralBackground1,
     } : undefined}>

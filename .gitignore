@@ -1,0 +1,5 @@
+.azurite
+node_modules
+assets
+dist
+.env
