@@ -238,20 +238,21 @@ export function createHRServer(): McpServer {
   registerAppTool(server, "show-consultant-profile", {
     title: "Show Consultant Profile",
     description:
-      "Display a detailed profile card for a specific consultant, including contact info, skills, certifications, roles, and current assignments.",
+      "Display a detailed profile card for a specific consultant, including contact info, skills, certifications, roles, and current assignments. Accepts the consultant's name or ID.",
     inputSchema: {
-      consultantId: z.string().describe("The ID of the consultant to view."),
+      consultant: z.string().describe("The consultant's name or ID (e.g. 'Sanjay Puranik' or '4')."),
     },
     annotations: { readOnlyHint: true },
     _meta: { ui: { resourceUri: PROFILE_URI } },
-  }, async ({ consultantId }) => {
-    const consultant = await db.getConsultantById(consultantId);
+  }, async ({ consultant: consultantRef }) => {
+    const consultant = await db.resolveConsultant(consultantRef);
     if (!consultant) {
       return {
-        content: [{ type: "text" as const, text: `Consultant ${consultantId} not found.` }],
+        content: [{ type: "text" as const, text: `Consultant "${consultantRef}" not found.` }],
         isError: true,
       };
     }
+    const consultantId = consultant.rowKey;
     const assignments = await db.getAssignmentsByConsultant(consultantId);
     const allProjects = await db.getAllProjects();
     const projectMap = new Map(allProjects.map((p) => [p.rowKey, parseProject(p)]));
@@ -362,20 +363,21 @@ export function createHRServer(): McpServer {
   registerAppTool(server, "show-project-details", {
     title: "Show Project Details",
     description:
-      "Display detailed information about a specific project including its assigned consultants and forecasted hours.",
+      "Display detailed information about a specific project including its assigned consultants and forecasted hours. Accepts project name or ID.",
     inputSchema: {
-      projectId: z.string().describe("The project ID."),
+      project: z.string().describe("The project name or ID (e.g. 'CRM Cloud Migration' or '1')."),
     },
     annotations: { readOnlyHint: true },
     _meta: { ui: { resourceUri: DASHBOARD_URI } },
-  }, async ({ projectId }) => {
-    const project = await db.getProjectById(projectId);
+  }, async ({ project: projectRef }) => {
+    const project = await db.resolveProject(projectRef);
     if (!project) {
       return {
-        content: [{ type: "text" as const, text: `Project ${projectId} not found.` }],
+        content: [{ type: "text" as const, text: `Project "${projectRef}" not found.` }],
         isError: true,
       };
     }
+    const projectId = project.rowKey;
     const assignments = await db.getAssignmentsByProject(projectId);
     const allConsultants = await db.getAllConsultants();
     const consultantMap = new Map(allConsultants.map((c) => [c.rowKey, parseConsultant(c)]));
@@ -413,47 +415,55 @@ export function createHRServer(): McpServer {
   // ─── Data-only tools (no UI) ───────────────────────────────────
 
   // update-consultant
-  server.tool("update-consultant", "Update a single consultant's information (name, email, phone, skills, roles).", {
-    consultantId: z.string().describe("The ID of the consultant to update."),
+  server.tool("update-consultant", "Update a single consultant's information (name, email, phone, skills, roles). Accepts the consultant's name or ID.", {
+    consultant: z.string().describe("The consultant's name or ID (e.g. 'Sanjay Puranik' or '4')."),
     name: z.string().optional().describe("Updated name."),
     email: z.string().optional().describe("Updated email."),
     phone: z.string().optional().describe("Updated phone."),
-    skills: z.array(z.string()).optional().describe("Updated skills list."),
-    roles: z.array(z.string()).optional().describe("Updated roles list."),
-  }, async ({ consultantId, ...updates }) => {
-    const updated = await db.updateConsultant(consultantId, updates);
-    if (!updated) {
+    skills: z.array(z.string()).optional().describe("Updated skills list (replaces existing). Include ALL skills, not just new ones."),
+    certifications: z.array(z.string()).optional().describe("Updated certifications list (replaces existing). Include ALL certifications, not just new ones."),
+    roles: z.array(z.string()).optional().describe("Updated roles list (replaces existing). Include ALL roles, not just new ones."),
+  }, async ({ consultant: consultantRef, ...updates }) => {
+    const found = await db.resolveConsultant(consultantRef);
+    if (!found) {
       return {
-        content: [{ type: "text" as const, text: `Consultant ${consultantId} not found.` }],
+        content: [{ type: "text" as const, text: `Consultant "${consultantRef}" not found.` }],
         isError: true,
       };
     }
+    const updated = await db.updateConsultant(found.rowKey, updates);
     return {
       content: [
         {
           type: "text" as const,
-          text: `Updated consultant ${updated.name} (ID: ${consultantId}).`,
+          text: `Updated consultant ${updated!.name} (ID: ${found.rowKey}).`,
         },
       ],
     };
   });
 
   // bulk-update-consultants
-  server.tool("bulk-update-consultants", "Batch-update multiple consultant records at once.", {
-    consultantIds: z.array(z.string()).describe("Array of consultant IDs to update."),
+  server.tool("bulk-update-consultants", "Batch-update multiple consultant records at once. Accepts names or IDs.", {
+    consultants: z.array(z.string()).describe("Array of consultant names or IDs to update (e.g. ['Sanjay Puranik', 'Avery Howard'] or ['4', '1'])."),
     name: z.string().optional().describe("New name for all."),
     email: z.string().optional().describe("New email for all."),
     phone: z.string().optional().describe("New phone for all."),
-    skills: z.array(z.string()).optional().describe("New skills list for all."),
-    roles: z.array(z.string()).optional().describe("New roles list for all."),
-  }, async ({ consultantIds, ...changes }) => {
+    skills: z.array(z.string()).optional().describe("New skills list for all (replaces existing)."),
+    certifications: z.array(z.string()).optional().describe("New certifications list for all (replaces existing)."),
+    roles: z.array(z.string()).optional().describe("New roles list for all (replaces existing)."),
+  }, async ({ consultants: consultantRefs, ...changes }) => {
     const results: string[] = [];
-    for (const consultantId of consultantIds) {
-      const updated = await db.updateConsultant(consultantId, changes);
+    for (const ref of consultantRefs) {
+      const found = await db.resolveConsultant(ref);
+      if (!found) {
+        results.push(`✗ Consultant "${ref}" not found`);
+        continue;
+      }
+      const updated = await db.updateConsultant(found.rowKey, changes);
       results.push(
         updated
           ? `✓ Updated ${updated.name}`
-          : `✗ Consultant ${consultantId} not found`
+          : `✗ Failed to update ${found.name}`
       );
     }
     return {
@@ -467,28 +477,28 @@ export function createHRServer(): McpServer {
   });
 
   // assign-consultant-to-project
-  server.tool("assign-consultant-to-project", "Assign a single consultant to a project with a specified role, optional billing rate, and optional forecast hours.", {
-    projectId: z.string().describe("The project ID to assign the consultant to."),
-    consultantId: z.string().describe("The consultant ID to assign."),
+  server.tool("assign-consultant-to-project", "Assign a consultant to a project with a specified role, optional billing rate. Accepts names or IDs for both consultant and project.", {
+    project: z.string().describe("The project name or ID (e.g. 'Cybersecurity Awareness Program' or '6')."),
+    consultant: z.string().describe("The consultant's name or ID (e.g. 'Sanjay Puranik' or '4')."),
     role: z.string().describe("The role the consultant will play on the project (e.g. Architect, Developer, Designer, Project lead)."),
     billable: z.boolean().optional().describe("Whether the assignment is billable. Defaults to true."),
     rate: z.number().optional().describe("Hourly rate for the consultant on this project. Defaults to 0."),
-  }, async ({ projectId, consultantId, role, billable, rate }) => {
-    const project = await db.getProjectById(projectId);
+  }, async ({ project: projectRef, consultant: consultantRef, role, billable, rate }) => {
+    const project = await db.resolveProject(projectRef);
     if (!project) {
       return {
-        content: [{ type: "text" as const, text: `Project ${projectId} not found.` }],
+        content: [{ type: "text" as const, text: `Project "${projectRef}" not found.` }],
         isError: true,
       };
     }
-    const consultant = await db.getConsultantById(consultantId);
+    const consultant = await db.resolveConsultant(consultantRef);
     if (!consultant) {
       return {
-        content: [{ type: "text" as const, text: `Consultant ${consultantId} not found.` }],
+        content: [{ type: "text" as const, text: `Consultant "${consultantRef}" not found.` }],
         isError: true,
       };
     }
-    await db.createAssignment({ projectId, consultantId, role, billable, rate });
+    await db.createAssignment({ projectId: project.rowKey, consultantId: consultant.rowKey, role, billable, rate });
     return {
       content: [
         {
@@ -500,28 +510,28 @@ export function createHRServer(): McpServer {
   });
 
   // bulk-assign-consultants
-  server.tool("bulk-assign-consultants", "Assign multiple consultants to a project at once. Each assignment includes a role, optional billing rate, and optional forecast.", {
-    projectId: z.string().describe("The project ID to assign consultants to."),
-    consultantIds: z.array(z.string()).describe("Array of consultant IDs to assign."),
+  server.tool("bulk-assign-consultants", "Assign multiple consultants to a project at once. Accepts names or IDs for project and consultants.", {
+    project: z.string().describe("The project name or ID (e.g. 'CRM Cloud Migration' or '1')."),
+    consultants: z.array(z.string()).describe("Array of consultant names or IDs (e.g. ['Sanjay Puranik', 'Robin Zupanc'] or ['4', '3'])."),
     role: z.string().describe("The role for all assigned consultants."),
     billable: z.boolean().optional().describe("Whether the assignments are billable. Defaults to true."),
     rate: z.number().optional().describe("Hourly rate for all assigned consultants. Defaults to 0."),
-  }, async ({ projectId, consultantIds, role, billable, rate }) => {
-    const project = await db.getProjectById(projectId);
+  }, async ({ project: projectRef, consultants: consultantRefs, role, billable, rate }) => {
+    const project = await db.resolveProject(projectRef);
     if (!project) {
       return {
-        content: [{ type: "text" as const, text: `Project ${projectId} not found.` }],
+        content: [{ type: "text" as const, text: `Project "${projectRef}" not found.` }],
         isError: true,
       };
     }
     const results: string[] = [];
-    for (const consultantId of consultantIds) {
-      const consultant = await db.getConsultantById(consultantId);
+    for (const ref of consultantRefs) {
+      const consultant = await db.resolveConsultant(ref);
       if (!consultant) {
-        results.push(`✗ Consultant ${consultantId} not found`);
+        results.push(`✗ Consultant "${ref}" not found`);
         continue;
       }
-      await db.createAssignment({ projectId, consultantId, role, billable, rate });
+      await db.createAssignment({ projectId: project.rowKey, consultantId: consultant.rowKey, role, billable, rate });
       results.push(`✓ Assigned ${consultant.name} as ${role}`);
     }
     return {
@@ -535,14 +545,28 @@ export function createHRServer(): McpServer {
   });
 
   // remove-assignment
-  server.tool("remove-assignment", "Remove a consultant's assignment from a project.", {
-    projectId: z.string().describe("The project ID."),
-    consultantId: z.string().describe("The consultant ID to remove from the project."),
-  }, async ({ projectId, consultantId }) => {
-    const removed = await db.deleteAssignment(projectId, consultantId);
+  server.tool("remove-assignment", "Remove a consultant's assignment from a project. Accepts names or IDs.", {
+    project: z.string().describe("The project name or ID (e.g. 'CRM Cloud Migration' or '1')."),
+    consultant: z.string().describe("The consultant's name or ID (e.g. 'Avery Howard' or '1')."),
+  }, async ({ project: projectRef, consultant: consultantRef }) => {
+    const project = await db.resolveProject(projectRef);
+    if (!project) {
+      return {
+        content: [{ type: "text" as const, text: `Project "${projectRef}" not found.` }],
+        isError: true,
+      };
+    }
+    const consultant = await db.resolveConsultant(consultantRef);
+    if (!consultant) {
+      return {
+        content: [{ type: "text" as const, text: `Consultant "${consultantRef}" not found.` }],
+        isError: true,
+      };
+    }
+    const removed = await db.deleteAssignment(project.rowKey, consultant.rowKey);
     if (!removed) {
       return {
-        content: [{ type: "text" as const, text: `Assignment for consultant ${consultantId} on project ${projectId} not found.` }],
+        content: [{ type: "text" as const, text: `No assignment found for ${consultant.name} on project "${project.name}".` }],
         isError: true,
       };
     }
@@ -550,7 +574,7 @@ export function createHRServer(): McpServer {
       content: [
         {
           type: "text" as const,
-          text: `Removed assignment: consultant ${consultantId} from project ${projectId}.`,
+          text: `Removed ${consultant.name} from project "${project.name}".`,
         },
       ],
     };

@@ -77,6 +77,34 @@ export async function searchConsultantsBySkill(skill: string): Promise<Consultan
   });
 }
 
+/**
+ * Resolve a consultant by ID or name (case-insensitive, partial match).
+ * Returns the first match or null.
+ */
+export async function resolveConsultant(idOrName: string): Promise<ConsultantEntity | null> {
+  // Try by ID first
+  const byId = await getConsultantById(idOrName);
+  if (byId) return byId;
+  // Fall back to name search
+  const all = await getAllConsultants();
+  const q = idOrName.toLowerCase();
+  return all.find((c) => c.name.toLowerCase().includes(q)) ?? null;
+}
+
+/**
+ * Resolve a project by ID or name (case-insensitive, partial match).
+ * Returns the first match or null.
+ */
+export async function resolveProject(idOrName: string): Promise<ProjectEntity | null> {
+  // Try by ID first
+  const byId = await getProjectById(idOrName);
+  if (byId) return byId;
+  // Fall back to name search
+  const all = await getAllProjects();
+  const q = idOrName.toLowerCase();
+  return all.find((p) => p.name.toLowerCase().includes(q) || p.clientName.toLowerCase().includes(q)) ?? null;
+}
+
 // ---------- Project helpers ----------
 
 export interface ProjectEntity {
