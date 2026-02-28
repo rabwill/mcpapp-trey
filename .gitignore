@@ -3,3 +3,5 @@ node_modules
 assets
 dist
 .env
+__azurite_db_table__.json
+AzuriteConfig
